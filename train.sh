@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=0,1,2,3 /data4/jiangjianping/anaconda3/envs/nerf/bin/python run_nerf.py --config configs/fern.txt --ft_path=./logs/fern_test/050000.tar
