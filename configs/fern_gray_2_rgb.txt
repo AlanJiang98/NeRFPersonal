@@ -1,9 +1,9 @@
-expname = fern_gray_test
+expname = fern_gray_2_rgb_test
 basedir = ./logs
 datadir = /data6/jiangjianping/EventNeRF/nerf/data/nerf_llff_data/fern
 dataset_type = llff
 
-is_gray = True
+is_grayrgb = True
 
 factor = 8
 llffhold = 8

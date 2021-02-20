@@ -4,9 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-# TODO: remove this dependency
-#from torch import searchsorted
-
 # Misc
 img2mse = lambda x, y : torch.mean((x - y) ** 2)
 mse2psnr = lambda x : -10. * torch.log(x) / torch.log(torch.Tensor([10.]))
@@ -75,7 +72,7 @@ def get_embedder(multires, i=0):
 
 # Model
 class NeRF(nn.Module):
-    def __init__(self, D=8, W=256, input_ch=3, input_ch_views=3, output_ch=4, skips=[4], use_viewdirs=False):
+    def __init__(self, D=8, W=256, input_ch=3, input_ch_views=3, output_ch=4, skips=[4], use_viewdirs=False, is_gray=False, is_linear_layer=False):
         """ 
         """
         super(NeRF, self).__init__()
@@ -85,6 +82,8 @@ class NeRF(nn.Module):
         self.input_ch_views = input_ch_views
         self.skips = skips
         self.use_viewdirs = use_viewdirs
+        self.is_gray = is_gray
+        self.is_linear_layer = is_linear_layer
         
         self.pts_linears = nn.ModuleList(
             [nn.Linear(input_ch, W)] + [nn.Linear(W, W) if i not in self.skips else nn.Linear(W + input_ch, W) for i in range(D-1)])
@@ -100,6 +99,9 @@ class NeRF(nn.Module):
             self.feature_linear = nn.Linear(W, W)
             self.alpha_linear = nn.Linear(W, 1)
             self.rgb_linear = nn.Linear(W//2, 3)
+            self.gray_linear = nn.Linear(W // 2, 1)
+            self.rgb2gray_layer = nn.Linear(3, 1)
+            # TODO rgb 三层都一样是灰度值
         else:
             self.output_linear = nn.Linear(W, output_ch)
 
@@ -120,8 +122,13 @@ class NeRF(nn.Module):
             for i, l in enumerate(self.views_linears):
                 h = self.views_linears[i](h)
                 h = F.relu(h)
-        # TODO when output_channel != 4 ????
-            rgb = self.rgb_linear(h)
+            if self.is_gray and self.is_linear_layer:
+                rgb = self.rgb_linear(h)
+                rgb = self.rgb2gray_layer(rgb)
+            elif self.is_gray and not self.is_linear_layer:
+                rgb = self.gray_linear(h)
+            else:
+                rgb = self.rgb_linear(h)
             outputs = torch.cat([rgb, alpha], -1)
         else:
             outputs = self.output_linear(h)

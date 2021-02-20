@@ -61,6 +61,7 @@ def _minify(basedir, factors=[], resolutions=[]):
         ext = imgs[0].split('.')[-1]
         args = ' '.join(['mogrify', '-resize', resizearg, '-format', 'png', '*.{}'.format(ext)])
         print(args)
+        # TODO downsampling + gaussian smoothing low frequency + aliasing
         # change working directory
         os.chdir(imgdir)
         check_output(args, shell=True)
@@ -469,7 +470,7 @@ def _load_gray_data(basedir, factor=None, width=None, height=None, load_imgs=Tru
         else:
             return imageio.imread(f, as_gray=True)
 
-    imgs = imgs = [imread(f)[..., :3] / 255. for f in imgfiles]
+    imgs = [imread(f)[..., None] / 255. for f in imgfiles]
     imgs = np.stack(imgs, -1)
 
     print('Loaded image data', imgs.shape, poses[:, -1, 0])

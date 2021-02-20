@@ -112,7 +112,6 @@ def render(H, W, focal, chunk=1024*32, rays=None, c2w=None, ndc=True,
     sh = rays_d.shape # [..., 3]
     if ndc:
         # for forward facing scenes
-        # TODO what's ndc?
         rays_o, rays_d = ndc_rays(H, W, focal, 1., rays_o, rays_d)
 
     # Create ray batch
@@ -190,12 +189,14 @@ def create_nerf(args):
         embeddirs_fn, input_ch_views = get_embedder(args.multires_views, args.i_embed)
     # if need sampled hierarchical we should add another channel for sample importance
     output_ch = 5 if args.N_importance > 0 else 4
+    if args.is_gray:
+        output_ch = 2
     # skip connection in MLP
-    skips = [4]
+    skips = [args.skip]
     # this is for hierarchical coarse model
     model = NeRF(D=args.netdepth, W=args.netwidth,
                  input_ch=input_ch, output_ch=output_ch, skips=skips,
-                 input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs)
+                 input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs, is_gray=args.is_gray, is_linear_layer=args.is_linear_layer)
     model = nn.DataParallel(model).to(device)
     grad_vars = list(model.parameters())
 
@@ -204,7 +205,7 @@ def create_nerf(args):
     if args.N_importance > 0:
         model_fine = NeRF(D=args.netdepth_fine, W=args.netwidth_fine,
                           input_ch=input_ch, output_ch=output_ch, skips=skips,
-                          input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs)
+                          input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs, is_gray=args.is_gray, is_linear_layer=args.is_linear_layer)
         model_fine = nn.DataParallel(model_fine).to(device)
         grad_vars += list(model_fine.parameters())
 
@@ -256,7 +257,6 @@ def create_nerf(args):
         'raw_noise_std' : args.raw_noise_std,
     }
 
-# TODO what's NDC?
     # NDC only good for LLFF-style forward facing data
     if args.dataset_type != 'llff' or args.no_ndc:
         print('Not ndc!')
@@ -292,19 +292,22 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
 
     dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
 
-    rgb = torch.sigmoid(raw[...,:3])  # [N_rays, N_samples, 3]
+    if raw.shape[-1] == 2:
+        rgb = torch.sigmoid(raw[...,:1])
+    else:
+        rgb = torch.sigmoid(raw[...,:3])  # [N_rays, N_samples, 3]
     noise = 0.
     if raw_noise_std > 0.:
-        noise = torch.randn(raw[...,3].shape) * raw_noise_std
+        noise = torch.randn(raw[...,-1].shape) * raw_noise_std
 
         # Overwrite randomly sampled data if pytest
         if pytest:
             np.random.seed(0)
-            noise = np.random.rand(*list(raw[...,3].shape)) * raw_noise_std
+            noise = np.random.rand(*list(raw[...,-1].shape)) * raw_noise_std
             noise = torch.Tensor(noise)
 
     # noise added to the rendered outputs to get alpha
-    alpha = raw2alpha(raw[...,3] + noise, dists)  # [N_rays, N_samples]
+    alpha = raw2alpha(raw[...,-1] + noise, dists)  # [N_rays, N_samples]
     # weights = alpha * tf.math.cumprod(1.-alpha + 1e-10, -1, exclusive=True)
     # to get the multiplied weights
     weights = alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
@@ -412,7 +415,7 @@ def render_rays(ray_batch,
         rgb_map_0, disp_map_0, acc_map_0 = rgb_map, disp_map, acc_map
 
         z_vals_mid = .5 * (z_vals[...,1:] + z_vals[...,:-1])
-        # TODO fine sampling method
+
         z_samples = sample_pdf(z_vals_mid, weights[...,1:-1], N_importance, det=(perturb==0.), pytest=pytest)
         z_samples = z_samples.detach()
 
@@ -456,31 +459,37 @@ def config_parser():
     parser.add_argument("--datadir", type=str, default='./data/llff/fern', 
                         help='input data directory')
 
+    parser.add_argument('--is_gray', action='store_true',
+                        help='images read gray')
+    parser.add_argument('--is_grayrgb', action='store_true',
+                        help='rgb formed from the gray * 3')
+    parser.add_argument('--is_linear_layer', action='store_true')
+    parser.add_argument('--skip', type=int, default=4)
+
     # training options
     parser.add_argument("--netdepth", type=int, default=8, 
                         help='layers in network')
     parser.add_argument("--netwidth", type=int, default=256, 
                         help='channels per layer')
-    # TODO
+
     parser.add_argument("--netdepth_fine", type=int, default=8, 
                         help='layers in fine network')
     parser.add_argument("--netwidth_fine", type=int, default=256, 
                         help='channels per layer in fine network')
 
-    # TODO
-    parser.add_argument("--N_rand", type=int, default=32*32*4,
+
+    parser.add_argument("--N_rand", type=int, default=4096,
                         help='batch size (number of random rays per gradient step)')
 
     parser.add_argument("--lrate", type=float, default=5e-4, 
                         help='learning rate')
-    parser.add_argument("--lrate_decay", type=int, default=250, 
+    parser.add_argument("--lrate_decay", type=int, default=200,
                         help='exponential learning rate decay (in 1000 steps)')
 
-    # TODO default chunk changed due to the Memory of Titan X
-    # TODO Distinguish the chunk
-    parser.add_argument("--chunk", type=int, default=1024*64,
+
+    parser.add_argument("--chunk", type=int, default=1024*32,
                         help='number of rays processed in parallel, decrease if running out of memory')
-    parser.add_argument("--netchunk_per_gpu", type=int, default=1024*64*8,
+    parser.add_argument("--netchunk_per_gpu", type=int, default=1024*32,
                         help='number of pts sent through network in parallel, decrease if running out of memory')
 
     parser.add_argument("--no_batching", action='store_true', 
@@ -507,16 +516,16 @@ def config_parser():
     parser.add_argument("--i_embed", type=int, default=0, 
                         help='set 0 for default positional encoding, -1 for none')
 
-    # TODO
+
     parser.add_argument("--multires", type=int, default=10, 
                         help='log2 of max freq for positional encoding (3D location)')
     parser.add_argument("--multires_views", type=int, default=4, 
                         help='log2 of max freq for positional encoding (2D direction)')
-    # TODO
+
     parser.add_argument("--raw_noise_std", type=float, default=0., 
                         help='std dev of noise added to regularize sigma_a output, 1e0 recommended')
 
-    # TODO
+
     parser.add_argument("--render_only", action='store_true', 
                         help='do not optimize, reload weights and render out render_poses path')
     parser.add_argument("--render_test", action='store_true', 
@@ -563,17 +572,17 @@ def config_parser():
                         help='will take every 1/N images as LLFF test set, paper uses 8')
 
     # logging/saving options
-    # TODO
     parser.add_argument("--i_print",   type=int, default=100, 
                         help='frequency of console printout and metric loggin')
     parser.add_argument("--i_img",     type=int, default=500, 
                         help='frequency of tensorboard image logging')
-    parser.add_argument("--i_weights", type=int, default=10000, 
+    parser.add_argument("--i_weights", type=int, default=20000,
                         help='frequency of weight ckpt saving')
-    parser.add_argument("--i_testset", type=int, default=50000, 
+    parser.add_argument("--i_testset", type=int, default=25000,
                         help='frequency of testset saving')
-    parser.add_argument("--i_video",   type=int, default=50000, 
+    parser.add_argument("--i_video",   type=int, default=25000,
                         help='frequency of render_poses video saving')
+    parser.add_argument('--N_iters', type=int, default=100000)
 
     return parser
 
@@ -699,6 +708,13 @@ def train():
         with open(f, 'w') as file:
             file.write(open(args.config, 'r').read())
 
+    file = os.path.join(basedir, expname, 'log.txt')
+
+    f = open(file, 'a+')
+
+    if f is None:
+        raise ValueError('Can not open log.txt file!')
+
     # Create nerf model
     render_kwargs_train, render_kwargs_test, start, grad_vars, optimizer = create_nerf(args)
     global_step = start
@@ -742,7 +758,10 @@ def train():
         print('get rays')
         rays = np.stack([get_rays_np(H, W, focal, p) for p in poses[:,:3,:4]], 0) # [N, ro+rd, H, W, 3]
         print('done, concats')
-        rays_rgb = np.concatenate([rays, images[:,None]], 1) # [N, ro+rd+rgb, H, W, 3]
+        if args.is_gray or args.is_grayrgb:
+            rays_rgb = np.concatenate([rays, np.tile(images[:,None], [1,1,1,1,3])], 1) # [N, ro+rd+rgb, H, W, 3]
+        else:
+            rays_rgb = np.concatenate([rays, images[:, None]], 1)
         rays_rgb = np.transpose(rays_rgb, [0,2,3,1,4]) # [N, H, W, ro+rd+rgb, 3]
         rays_rgb = np.stack([rays_rgb[i] for i in i_train], 0) # train images only
         rays_rgb = np.reshape(rays_rgb, [-1,3,3]) # [(N-1)*H*W, ro+rd+rgb, 3]
@@ -761,7 +780,7 @@ def train():
         rays_rgb = torch.Tensor(rays_rgb).to(device)
 
 
-    N_iters = 200000 + 1
+    N_iters = args.N_iters + 1
     print('Begin')
     print('TRAIN views are', i_train)
     print('TEST views are', i_test)
@@ -777,7 +796,7 @@ def train():
         # Sample random ray batch
         if use_batching:
             # Random over all images
-            batch = rays_rgb[i_batch:i_batch+N_rand] # [B, 2+1, 3*?]
+            batch = rays_rgb[i_batch:i_batch+N_rand] # [B, 2+1, 3]
             batch = torch.transpose(batch, 0, 1)
             # batch_rays: origin, direction
             # target_s: RGB GT
@@ -786,6 +805,7 @@ def train():
             i_batch += N_rand
             if i_batch >= rays_rgb.shape[0]:
                 print("Shuffle data after an epoch!")
+                f.write('Shuffle data after an epoch!')
                 # shuffle the rays and restart an epoch
                 rand_idx = torch.randperm(rays_rgb.shape[0])
                 rays_rgb = rays_rgb[rand_idx]
@@ -827,13 +847,19 @@ def train():
                                                 **render_kwargs_train)
 
         optimizer.zero_grad()
-        img_loss = img2mse(rgb, target_s)
+        if args.is_gray:
+            img_loss = img2mse(rgb, target_s[...,:1])
+        else:
+            img_loss = img2mse(rgb, target_s)
         trans = extras['raw'][...,-1]
         loss = img_loss
         psnr = mse2psnr(img_loss)
 
         if 'rgb0' in extras:
-            img_loss0 = img2mse(extras['rgb0'], target_s)
+            if args.is_gray:
+                img_loss0 = img2mse(extras['rgb0'], target_s[..., :1])
+            else:
+                img_loss0 = img2mse(extras['rgb0'], target_s)
             loss = loss + img_loss0
             psnr0 = mse2psnr(img_loss0)
 
@@ -871,8 +897,14 @@ def train():
             print('Done, saving', rgbs.shape, disps.shape)
             moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
             # TODO change the kwargs macro_block_size = 1
-            imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=8, macro_block_size=1)
-            imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=8, macro_block_size=1)
+            if args.is_grayrgb:
+                imageio.mimwrite(moviebase + 'rgb0.mp4', to8b(rgbs[..., :1]), fps=30, quality=8, macro_block_size=1)
+                imageio.mimwrite(moviebase + 'rgb1.mp4', to8b(rgbs[..., 1:2]), fps=30, quality=8, macro_block_size=1)
+                imageio.mimwrite(moviebase + 'rgb2.mp4', to8b(rgbs[..., 2:3]), fps=30, quality=8, macro_block_size=1)
+                imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=8, macro_block_size=1)
+            else:
+                imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=8, macro_block_size=1)
+                imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=8, macro_block_size=1)
 
             # if args.use_viewdirs:
             #     render_kwargs_test['c2w_staticcam'] = render_poses[0][:3,:4]
@@ -893,6 +925,7 @@ def train():
     
         if i%args.i_print==0:
             tqdm.write(f"[TRAIN] Iter: {i} Loss: {loss.item()}  PSNR: {psnr.item()}")
+            f.write(f'[TRAIN] Iter: {i} Loss: {loss.item()}  PSNR: {psnr.item()}')
         """
             print(expname, i, psnr.numpy(), loss.numpy(), global_step.numpy())
             print('iter time {:.05f}'.format(dt))
