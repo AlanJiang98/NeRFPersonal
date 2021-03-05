@@ -481,6 +481,8 @@ def config_parser():
                         help='rgb formed from the gray * 3')
     parser.add_argument('--is_linear_layer', action='store_true')
     parser.add_argument('--skip', type=int, default=4)
+    parser.add_argument('--is_y', action='store_true', help='Y channel instead of LIF channels')
+    parser.add_argument('--is_drop', action='store_true', help='modify the RGB DVS data')
 
     # training options
     parser.add_argument("--netdepth", type=int, default=8, 
@@ -499,7 +501,7 @@ def config_parser():
 
     parser.add_argument("--lrate", type=float, default=5e-4, 
                         help='learning rate')
-    parser.add_argument("--lrate_decay", type=int, default=200,
+    parser.add_argument("--lrate_decay", type=int, default=250,
                         help='exponential learning rate decay (in 1000 steps)')
 
 
@@ -596,7 +598,7 @@ def config_parser():
                         help='frequency of weight ckpt saving')
     parser.add_argument("--i_testset", type=int, default=20000,
                         help='frequency of testset saving')
-    parser.add_argument("--i_video",   type=int, default=25000,
+    parser.add_argument("--i_video",   type=int, default=20000,
                         help='frequency of render_poses video saving')
     parser.add_argument('--N_iters', type=int, default=100000)
 
@@ -645,7 +647,7 @@ def train():
     elif args.dataset_type == 'llff_gray':
         images, poses, bds, render_poses, i_test = load_llff_gray_data(args.datadir, args.factor,
                                                                   recenter=True, bd_factor=.75,
-                                                                  spherify=args.spherify)
+                                                                  spherify=args.spherify, is_y=args.is_y)
         hwf = poses[0, :3, -1]
         poses = poses[:, :3, :4]
         print('Loaded llff', images.shape, render_poses.shape, hwf, args.datadir)
@@ -863,17 +865,24 @@ def train():
                                                 **render_kwargs_train)
 
         optimizer.zero_grad()
+
         if args.is_gray:
-            img_loss = img2mse(rgb, target_s[...,:1])
-        else:
-            img_loss = img2mse(rgb, target_s)
-        trans = extras['raw'][...,-1]
+            target_s = target_s[..., :1]
+
+        index_0_drop, index_1_drop = random_index_drop(N_rand)
+        if args.is_drop:
+            rgb = rgb[index_0_drop, index_1_drop]
+            target_s = target_s[index_0_drop, index_1_drop]
+
+
+        img_loss = img2mse(rgb, target_s)
+        trans = extras['raw'][..., -1]
         loss = img_loss
         psnr = mse2psnr(img_loss)
 
         if 'rgb0' in extras:
-            if args.is_gray:
-                img_loss0 = img2mse(extras['rgb0'], target_s[..., :1])
+            if args.is_drop:
+                img_loss0 = img2mse(extras['rgb0'][index_0_drop, index_1_drop], target_s)
             else:
                 img_loss0 = img2mse(extras['rgb0'], target_s)
             loss = loss + img_loss0

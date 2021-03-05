@@ -10,6 +10,16 @@ mse2psnr = lambda x : -10. * torch.log(x) / torch.log(torch.Tensor([10.]))
 to8b = lambda x : (255*np.clip(x,0,1)).astype(np.uint8)
 
 
+def random_index_drop(N):
+    index = torch.arange(3).resize(3, 1)
+    index = index.repeat(1, N).resize(3 * N, 1)
+    rand_index = torch.randperm(N * 3)
+    index1 = index[rand_index][:N].resize(N)
+    index0 = torch.arange(N)
+    return index0, index1
+
+
+
 # Positional encoding (section 5.1)
 class Embedder:
     def __init__(self, **kwargs):

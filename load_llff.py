@@ -396,7 +396,7 @@ def load_llff_data(basedir, factor=8, recenter=True, bd_factor=.75, spherify=Fal
     return images, poses, bds, render_poses, i_test
 
 
-def _load_gray_data(basedir, factor=None, width=None, height=None, load_imgs=True):
+def _load_gray_data(basedir, factor=None, width=None, height=None, load_imgs=True, is_y=False):
     """
     load data of poses, bounds, images
     :param basedir:
@@ -465,19 +465,27 @@ def _load_gray_data(basedir, factor=None, width=None, height=None, load_imgs=Tru
         return poses, bds
 
     def imread(f):
-        if f.endswith('png'):
-            return imageio.imread(f, ignoregamma=True, as_gray=True)
+        if is_y:
+            if f.endswith('png'):
+                return imageio.imread(f, ignoregamma=True)
+            else:
+                return imageio.imread(f)
         else:
-            return imageio.imread(f, as_gray=True)
+            if f.endswith('png'):
+                return imageio.imread(f, ignoregamma=True, as_gray=True)
+            else:
+                return imageio.imread(f, as_gray=True)
 
     imgs = [imread(f)[..., None] / 255. for f in imgfiles]
     imgs = np.stack(imgs, -1)
+    if is_y:
+        imgs = 0.2126 * imgs[:, :, 0, ...] + 0.7152 * imgs[:, :, 1,...] + 0.0722 * imgs[:, :, 2, ...]
 
     print('Loaded image data', imgs.shape, poses[:, -1, 0])
     return poses, bds, imgs
 
 
-def load_llff_gray_data(basedir, factor=8, recenter=True, bd_factor=.75, spherify=False, path_zflat=False):
+def load_llff_gray_data(basedir, factor=8, recenter=True, bd_factor=.75, spherify=False, path_zflat=False, is_y=False):
     """
     load llff data [images: factored, bds: scene bounds, pose: recentered, render_pose: views for video, i_test: test index]
     :param basedir: data dir
@@ -488,7 +496,7 @@ def load_llff_gray_data(basedir, factor=8, recenter=True, bd_factor=.75, spherif
     :param path_zflat: whether to render video from z axis
     :return:
     """
-    poses, bds, imgs = _load_gray_data(basedir, factor=factor)  # factor=8 downsamples original imgs by 8x
+    poses, bds, imgs = _load_gray_data(basedir, factor=factor, is_y=is_y)  # factor=8 downsamples original imgs by 8x
     print('Loaded', basedir, bds.min(), bds.max())
 
     # Correct rotation matrix ordering and move variable dim to axis 0
