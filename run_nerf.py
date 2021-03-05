@@ -135,7 +135,7 @@ def render(H, W, focal, chunk=1024*32, rays=None, c2w=None, ndc=True,
     return ret_list + [ret_dict]
 
 
-def render_path(render_poses, hwf, chunk, render_kwargs, gt_imgs=None, savedir=None, render_factor=0):
+def render_path(render_poses, hwf, chunk, render_kwargs, gt_imgs=None, savedir=None, render_factor=0, f=None):
 
     H, W, focal = hwf
 
@@ -147,12 +147,25 @@ def render_path(render_poses, hwf, chunk, render_kwargs, gt_imgs=None, savedir=N
 
     rgbs = []
     disps = []
+    imgs_norm = torch.Tensor(gt_imgs).to(device)
 
     t = time.time()
     for i, c2w in enumerate(tqdm(render_poses)):
         print(i, time.time() - t)
         t = time.time()
-        rgb, disp, acc, _ = render(H, W, focal, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
+        rgb, disp, acc, extras = render(H, W, focal, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
+
+        img_loss = img2mse(rgb, imgs_norm[i])
+        loss = img_loss
+        psnr = mse2psnr(img_loss)
+        psnr0 = 0
+        if 'rgb0' in extras:
+            img_loss0 = img2mse(extras['rgb0'], imgs_norm[i])
+            loss = loss + img_loss0
+            psnr0 = mse2psnr(img_loss0)
+        print(f'[Test] Image: {i}  Loss: {loss.item()} PSNR fine: {psnr.item()} PSNR simple: {psnr0.item()}')
+        if f is not None:
+            f.write(f'[Test] Image: {i}  Loss: {loss.item()} PSNR fine: {psnr.item()} PSNR simple: {psnr0.item()}\n')
         rgbs.append(rgb.cpu().numpy())
         disps.append(disp.cpu().numpy())
         if i==0:
@@ -168,6 +181,9 @@ def render_path(render_poses, hwf, chunk, render_kwargs, gt_imgs=None, savedir=N
             rgb8 = to8b(rgbs[-1])
             filename = os.path.join(savedir, '{:03d}.png'.format(i))
             imageio.imwrite(filename, rgb8)
+            disp_name = os.path.join(savedir, '{:03d}_disp.png'.format(i))
+            disp8 = disps[-1]
+            imageio.imwrite(disp_name,to8b(disp8 / np.max(disp8)))
 
 
     rgbs = np.stack(rgbs, 0)
@@ -578,7 +594,7 @@ def config_parser():
                         help='frequency of tensorboard image logging')
     parser.add_argument("--i_weights", type=int, default=20000,
                         help='frequency of weight ckpt saving')
-    parser.add_argument("--i_testset", type=int, default=25000,
+    parser.add_argument("--i_testset", type=int, default=20000,
                         help='frequency of testset saving')
     parser.add_argument("--i_video",   type=int, default=25000,
                         help='frequency of render_poses video saving')
@@ -643,7 +659,7 @@ def train():
         i_val = i_test
         i_train = np.array([i for i in np.arange(int(images.shape[0])) if
                             (i not in i_test and i not in i_val)])
-
+        i_test = np.arange(images.shape[0])
         print('DEFINING BOUNDS')
         if args.no_ndc:
             near = np.ndarray.min(bds) * .9
@@ -899,9 +915,10 @@ def train():
             # TODO change the kwargs macro_block_size = 1
             if args.is_grayrgb:
                 imageio.mimwrite(moviebase + 'rgb0.mp4', to8b(rgbs[..., :1]), fps=30, quality=8, macro_block_size=1)
-                imageio.mimwrite(moviebase + 'rgb1.mp4', to8b(rgbs[..., 1:2]), fps=30, quality=8, macro_block_size=1)
-                imageio.mimwrite(moviebase + 'rgb2.mp4', to8b(rgbs[..., 2:3]), fps=30, quality=8, macro_block_size=1)
+                # imageio.mimwrite(moviebase + 'rgb1.mp4', to8b(rgbs[..., 1:2]), fps=30, quality=8, macro_block_size=1)
+                # imageio.mimwrite(moviebase + 'rgb2.mp4', to8b(rgbs[..., 2:3]), fps=30, quality=8, macro_block_size=1)
                 imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=8, macro_block_size=1)
+                imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=8,macro_block_size=1)
             else:
                 imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=8, macro_block_size=1)
                 imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=8, macro_block_size=1)
@@ -918,14 +935,14 @@ def train():
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', poses[i_test].shape)
             with torch.no_grad():
-                render_path(torch.Tensor(poses[i_test]).to(device), hwf, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
+                render_path(torch.Tensor(poses[i_test]).to(device), hwf, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir, f=f)
             print('Saved test set')
 
 
     
         if i%args.i_print==0:
             tqdm.write(f"[TRAIN] Iter: {i} Loss: {loss.item()}  PSNR: {psnr.item()}")
-            f.write(f'[TRAIN] Iter: {i} Loss: {loss.item()}  PSNR: {psnr.item()}')
+            f.write(f'[TRAIN] Iter: {i} Loss: {loss.item()}  PSNR: {psnr.item()}\n')
         """
             print(expname, i, psnr.numpy(), loss.numpy(), global_step.numpy())
             print('iter time {:.05f}'.format(dt))

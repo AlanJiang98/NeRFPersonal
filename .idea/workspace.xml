@@ -5,22 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="75141b47-7b9d-4454-95bb-980712eb99f7" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/sshConfigs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/configs/fern_gray_2_rgb.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/configs/fern_gray_positionencoding.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/configs/fern_test_origin.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/NeRF-Pytorch.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/NeRF-Pytorch.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/remote-mappings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/remote-mappings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/configs/fern_gray.txt" beforeDir="false" afterPath="$PROJECT_DIR$/configs/fern_gray.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/load_llff.py" beforeDir="false" afterPath="$PROJECT_DIR$/load_llff.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/run_nerf.py" beforeDir="false" afterPath="$PROJECT_DIR$/run_nerf.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/run_nerf_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/run_nerf_helpers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/train.sh" beforeDir="false" afterPath="$PROJECT_DIR$/train.sh" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,7 +33,7 @@
     <property name="WebServerToolWindowPanel.toolwindow.show.date" value="false" />
     <property name="WebServerToolWindowPanel.toolwindow.show.permissions" value="false" />
     <property name="WebServerToolWindowPanel.toolwindow.show.size" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/configs" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RecentsManager">
@@ -61,7 +48,7 @@
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
-        <env name="CUDA_VISIBLE_DEVICES" value="4,5" />
+        <env name="CUDA_VISIBLE_DEVICES" value="4,5,6,7" />
       </envs>
       <option name="SDK_HOME" value="" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
@@ -70,7 +57,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/run_nerf.py" />
-      <option name="PARAMETERS" value="--config ./configs/fern_gray.txt" />
+      <option name="PARAMETERS" value="--config configs/fern_test_origin.txt --expname fern_exp6 --dataset_type llff_gray --is_grayrgb --netdepth 6 --netdepth_fine 6 --skip 3 --render_only --render_test" />
       <option name="SHOW_COMMAND_LINE" value="true" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -99,7 +86,12 @@
       <workItem from="1613687521434" duration="358000" />
       <workItem from="1613742638078" duration="308000" />
       <workItem from="1613783202509" duration="1214000" />
-      <workItem from="1613864736457" duration="443000" />
+      <workItem from="1613864736457" duration="886000" />
+      <workItem from="1613870198063" duration="1003000" />
+      <workItem from="1614123937299" duration="5386000" />
+      <workItem from="1614305831382" duration="1927000" />
+      <workItem from="1614840669579" duration="32000" />
+      <workItem from="1614922846755" duration="43000" />
     </task>
     <servers />
   </component>
@@ -130,7 +122,7 @@
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/NeRF_Pytorch$fern_gray.coverage" NAME="fern_gray Coverage Results" MODIFIED="1612609854965" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/NeRF_Pytorch$fern_gray.coverage" NAME="fern_gray Coverage Results" MODIFIED="1614306860700" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/NeRF_Pytorch$run_nerf.coverage" NAME="run_nerf Coverage Results" MODIFIED="1612585159136" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
