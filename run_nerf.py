@@ -147,25 +147,26 @@ def render_path(render_poses, hwf, chunk, render_kwargs, gt_imgs=None, savedir=N
 
     rgbs = []
     disps = []
-    imgs_norm = torch.Tensor(gt_imgs).to(device)
+    if gt_imgs is not None:
+        imgs_norm = torch.Tensor(gt_imgs).to(device)
 
     t = time.time()
     for i, c2w in enumerate(tqdm(render_poses)):
         print(i, time.time() - t)
         t = time.time()
         rgb, disp, acc, extras = render(H, W, focal, chunk=chunk, c2w=c2w[:3,:4], **render_kwargs)
-
-        img_loss = img2mse(rgb, imgs_norm[i])
-        loss = img_loss
-        psnr = mse2psnr(img_loss)
-        psnr0 = 0
-        if 'rgb0' in extras:
-            img_loss0 = img2mse(extras['rgb0'], imgs_norm[i])
-            loss = loss + img_loss0
-            psnr0 = mse2psnr(img_loss0)
-        print(f'[Test] Image: {i}  Loss: {loss.item()} PSNR fine: {psnr.item()} PSNR simple: {psnr0.item()}')
-        if f is not None:
-            f.write(f'[Test] Image: {i}  Loss: {loss.item()} PSNR fine: {psnr.item()} PSNR simple: {psnr0.item()}\n')
+        if gt_imgs is not None:
+            img_loss = img2mse(rgb, imgs_norm[i])
+            loss = img_loss
+            psnr = mse2psnr(img_loss)
+            psnr0 = 0
+            if 'rgb0' in extras:
+                img_loss0 = img2mse(extras['rgb0'], imgs_norm[i])
+                loss = loss + img_loss0
+                psnr0 = mse2psnr(img_loss0)
+            print(f'[Test] Image: {i}  Loss: {loss.item()} PSNR fine: {psnr.item()} PSNR simple: {psnr0.item()}')
+            if f is not None:
+                f.write(f'[Test] Image: {i}  Loss: {loss.item()} PSNR fine: {psnr.item()} PSNR simple: {psnr0.item()}\n')
         rgbs.append(rgb.cpu().numpy())
         disps.append(disp.cpu().numpy())
         if i==0:
@@ -869,7 +870,7 @@ def train():
         if args.is_gray:
             target_s = target_s[..., :1]
 
-        index_0_drop, index_1_drop = random_index_drop(N_rand)
+        index_0_drop, index_1_drop = random_index_drop(rgb.shape[0])
         if args.is_drop:
             rgb = rgb[index_0_drop, index_1_drop]
             target_s = target_s[index_0_drop, index_1_drop]
