@@ -217,7 +217,7 @@ def render_path_spiral(c2w, up, rads, focal, zdelta, zrate, rots, N):
 
     for theta in np.linspace(0., 2. * np.pi * rots, N + 1)[:-1]:
         # TODO why? maybe calculate the center of poses around the shpere circle near rads
-        c = np.dot(c2w[:3, :4], np.array([np.cos(theta), -np.sin(theta), -np.sin(theta * zrate), 1.]) * rads)
+        c = np.dot(c2w[:3, :4], np.array([np.cos(theta), -np.sin(theta), -np.sin(theta * zrate), 1.]) * rads * 1.5)
         z = normalize(c - np.dot(c2w[:3, :4], np.array([0, 0, -focal, 1.])))
         render_poses.append( np.concatenate([viewmatrix(z, up, c), hwf], 1))
     return render_poses
@@ -307,7 +307,7 @@ def spherify_poses(poses, bds):
     return poses_reset, new_poses, bds
 
 
-def load_llff_data(basedir, factor=8, recenter=True, bd_factor=.75, spherify=False, path_zflat=False):
+def load_llff_data(basedir, factor=8, recenter=True, bd_factor=.75, spherify=False, path_zflat=False, is_event=False):
     """
     load llff data [images: factored, bds: scene bounds, pose: recentered, render_pose: views for video, i_test: test index]
     :param basedir: data dir
@@ -332,9 +332,10 @@ def load_llff_data(basedir, factor=8, recenter=True, bd_factor=.75, spherify=Fal
 
     # Rescale if bd_factor is provided
     # rescale the t of pose by bd factor (make the space smaller)
-    sc = 1. if bd_factor is None else 1. / (bds.min() * bd_factor)
-    poses[:, :3, 3] *= sc
-    bds *= sc
+    if not is_event:
+        sc = 1. if bd_factor is None else 1. / (bds.min() * bd_factor)
+        poses[:, :3, 3] *= sc
+        bds *= sc
 
     # change the world's coordinate origin point to Pose center
     if recenter:
@@ -355,6 +356,8 @@ def load_llff_data(basedir, factor=8, recenter=True, bd_factor=.75, spherify=Fal
 
         # Find a reasonable "focus depth" for this dataset
         close_depth, inf_depth = bds.min() * .9, bds.max() * 5.
+        if close_depth < 0.01:
+            close_depth = 0.3
         dt = .75
         mean_dz = 1. / (((1. - dt) / close_depth + dt / inf_depth))
         focal = mean_dz
@@ -365,8 +368,8 @@ def load_llff_data(basedir, factor=8, recenter=True, bd_factor=.75, spherify=Fal
         tt = poses[:, :3, 3]  # ptstocam(poses[:3,3,:].T, c2w).T
         rads = np.percentile(np.abs(tt), 90, 0)
         c2w_path = c2w
-        N_views = 120
-        N_rots = 2
+        N_views = 60
+        N_rots = 1
         # from the view of Z axis
         if path_zflat:
             #             zloc = np.percentile(tt, 10, 0)[2]

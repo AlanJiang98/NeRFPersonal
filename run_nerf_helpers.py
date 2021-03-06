@@ -10,6 +10,13 @@ mse2psnr = lambda x : -10. * torch.log(x) / torch.log(torch.Tensor([10.]))
 to8b = lambda x : (255*np.clip(x,0,1)).astype(np.uint8)
 
 
+def get_pose_npy(poses, bounds=[0., 1.]):
+    poses_temp = np.concatenate([-poses[:, :, 1:2], poses[:, :, :1], poses[:, :, 2:]], axis=2)
+    bd = np.array([bounds[0], bounds[1]]).reshape([1, 2])
+    bds = np.tile(bd, [poses.shape[0], 1])
+    poses_temp = poses_temp.reshape(poses_temp.shape[0], -1)
+    return np.concatenate([poses_temp, bds], axis=1)
+
 def random_index_drop(N):
     index = torch.arange(3).resize(3, 1)
     index = index.repeat(1, N).resize(3 * N, 1)

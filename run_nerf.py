@@ -484,6 +484,7 @@ def config_parser():
     parser.add_argument('--skip', type=int, default=4)
     parser.add_argument('--is_y', action='store_true', help='Y channel instead of LIF channels')
     parser.add_argument('--is_drop', action='store_true', help='modify the RGB DVS data')
+    parser.add_argument('--is_event', action='store_true')
 
     # training options
     parser.add_argument("--netdepth", type=int, default=8, 
@@ -620,7 +621,7 @@ def train():
     if args.dataset_type == 'llff':
         images, poses, bds, render_poses, i_test = load_llff_data(args.datadir, args.factor,
                                                                   recenter=True, bd_factor=.75,
-                                                                  spherify=args.spherify)
+                                                                  spherify=args.spherify, is_event=args.is_event)
         hwf = poses[0,:3,-1]
         poses = poses[:,:3,:4]
         print('Loaded llff', images.shape, render_poses.shape, hwf, args.datadir)
@@ -918,10 +919,22 @@ def train():
 
         if i%args.i_video==0 and i > 0:
             # Turn on testing mode
+            print('Start video rendering!')
             with torch.no_grad():
                 rgbs, disps = render_path(render_poses, hwf, args.chunk, render_kwargs_test)
             print('Done, saving', rgbs.shape, disps.shape)
             moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
+            if args.is_event:
+                newdir = os.path.join(basedir, expname, 'newdata')
+                os.makedirs(newdir, exist_ok=True)
+                newdir_img = os.path.join(newdir, 'images')
+                os.makedirs(newdir_img, exist_ok=True)
+                for img in range(0, rgbs.shape[0], 3):
+                    filename = os.path.join(newdir_img, '{:03d}.png'.format(int(img/3)))
+                    imageio.imwrite(filename, to8b(rgbs[img, ...]))
+                render_pose_save = get_pose_npy(render_poses.cpu().numpy(), bounds=[.0, 1.])
+                np.save(os.path.join(newdir, 'poses_bounds.npy'), render_pose_save[::3])
+
             # TODO change the kwargs macro_block_size = 1
             if args.is_grayrgb:
                 imageio.mimwrite(moviebase + 'rgb0.mp4', to8b(rgbs[..., :1]), fps=30, quality=8, macro_block_size=1)
