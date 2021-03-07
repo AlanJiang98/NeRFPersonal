@@ -1,7 +1,7 @@
-expname = fern_new_exp1
+expname = fern_new_exp2
 
 basedir = ./logs
-datadir = /data4/jiangjianping/EventNeRF/nerf-pytorch/newdata/fern_new
+datadir = /data4/jiangjianping/EventNeRF/nerf-pytorch/logs/fern_exp1/newdata
 dataset_type = llff
 
 factor = 1

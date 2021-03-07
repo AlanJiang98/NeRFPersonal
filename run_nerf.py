@@ -485,6 +485,7 @@ def config_parser():
     parser.add_argument('--is_y', action='store_true', help='Y channel instead of LIF channels')
     parser.add_argument('--is_drop', action='store_true', help='modify the RGB DVS data')
     parser.add_argument('--is_event', action='store_true')
+    parser.add_argument('--is_output', action='store_true')
 
     # training options
     parser.add_argument("--netdepth", type=int, default=8, 
@@ -924,7 +925,7 @@ def train():
                 rgbs, disps = render_path(render_poses, hwf, args.chunk, render_kwargs_test)
             print('Done, saving', rgbs.shape, disps.shape)
             moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
-            if args.is_event:
+            if args.is_output:
                 newdir = os.path.join(basedir, expname, 'newdata')
                 os.makedirs(newdir, exist_ok=True)
                 newdir_img = os.path.join(newdir, 'images')

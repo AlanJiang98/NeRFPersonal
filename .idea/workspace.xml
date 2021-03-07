@@ -5,12 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="75141b47-7b9d-4454-95bb-980712eb99f7" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/configs/fern_new.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/synthesis_utils.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/configs/fern_new.txt" beforeDir="false" afterPath="$PROJECT_DIR$/configs/fern_new.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/load_llff.py" beforeDir="false" afterPath="$PROJECT_DIR$/load_llff.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/run_nerf.py" beforeDir="false" afterPath="$PROJECT_DIR$/run_nerf.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/run_nerf_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/run_nerf_helpers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/synthesis_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/synthesis_utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -101,7 +100,7 @@
       <workItem from="1614305831382" duration="1927000" />
       <workItem from="1614840669579" duration="32000" />
       <workItem from="1614922846755" duration="21001000" />
-      <workItem from="1615027877911" duration="3936000" />
+      <workItem from="1615027877911" duration="12189000" />
     </task>
     <servers />
   </component>
